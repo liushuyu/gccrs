@@ -93,9 +93,7 @@ public:
     return parent == nullptr || trait_item_ref == nullptr;
   }
 
-  BaseType *get_tyty_for_receiver (const TyTy::BaseType *receiver,
-				   const HIR::GenericArgs *bound_args
-				   = nullptr);
+  BaseType *get_tyty_for_receiver (const TyTy::BaseType *receiver);
 
   const Resolver::TraitItemReference *get_raw_item () const;
 
@@ -605,9 +603,12 @@ class SubstitutionArg
 {
 public:
   SubstitutionArg (const SubstitutionParamMapping *param, BaseType *argument)
-    : param (std::move (param)), argument (argument)
+    : param (param), argument (argument)
   {}
 
+  // FIXME
+  // the copy constructors need removed - they are unsafe see
+  // TypeBoundPredicate
   SubstitutionArg (const SubstitutionArg &other)
     : param (other.param), argument (other.argument)
   {}
@@ -992,11 +993,8 @@ public:
   TypeBoundPredicateItem
   lookup_associated_item (const std::string &search) const;
 
-  HIR::GenericArgs *get_generic_args () { return &args; }
-
-  const HIR::GenericArgs *get_generic_args () const { return &args; }
-
-  bool has_generic_args () const { return args.has_generic_args (); }
+  TypeBoundPredicateItem
+  lookup_associated_item (const Resolver::TraitItemReference *ref) const;
 
   // WARNING THIS WILL ALWAYS RETURN NULLPTR
   BaseType *
@@ -1009,7 +1007,6 @@ public:
 private:
   DefId reference;
   Location locus;
-  HIR::GenericArgs args;
   bool error_flag;
 };
 

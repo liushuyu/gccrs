@@ -496,12 +496,18 @@ SubstitutionParamMapping::fill_param_ty (BaseType &type, Location locus)
 
 	  if (found && associated_impl_block_id != UNKNOWN_HIRID)
 	    {
+	      rust_debug (
+		"found && associated_impl_block_id != UNKNOWN_HIRID 1");
 	      Resolver::AssociatedImplTrait *lookup_associated = nullptr;
 	      bool found_impl_trait = context->lookup_associated_trait_impl (
 		associated_impl_block_id, &lookup_associated);
 
 	      if (found_impl_trait)
-		lookup_associated->setup_associated_types ();
+		{
+		  rust_debug (
+		    "found && associated_impl_block_id != UNKNOWN_HIRID 2");
+		  lookup_associated->setup_associated_types ();
+		}
 	    }
 	}
 

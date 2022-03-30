@@ -714,6 +714,10 @@ CompileExpr::resolve_method_address (TyTy::FnType *fntype, HirId ref,
       return address_expression (fn, expr_locus);
     }
 
+  rust_debug_loc (expr_locus, "trying to resolve method address");
+  fntype->debug ();
+  receiver->debug ();
+
   // Now we can try and resolve the address since this might be a forward
   // declared function, generic function which has not be compiled yet or
   // its an not yet trait bound function

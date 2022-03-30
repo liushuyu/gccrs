@@ -445,14 +445,20 @@ TypeCheckExpr::resolve_operator_overload (
 	}
     }
 
+  rust_debug ("OPERATOR OVERLOAD FNTYPE XXXXXXXXXXXXXXXXXXXXx ");
+  lookup->debug ();
+
   // handle generics
   if (!receiver_is_type_param)
     {
       if (lookup->needs_generic_substitutions ())
 	{
+	  rust_debug ("INFER SUBSTS");
 	  lookup = SubstMapper::InferSubst (lookup, expr.get_locus ());
 	}
     }
+
+  lookup->debug ();
 
   // type check the arguments if required
   TyTy::FnType *type = static_cast<TyTy::FnType *> (lookup);
@@ -469,6 +475,8 @@ TypeCheckExpr::resolve_operator_overload (
       auto fnparam = type->param_at (1);
       fnparam.second->unify (rhs); // typecheck the rhs
     }
+
+  lookup->debug ();
 
   // get the return type
   TyTy::BaseType *function_ret_tyty = type->get_return_type ()->clone ();

@@ -71,12 +71,14 @@ public:
 	if (p->can_resolve ())
 	  {
 	    other = p->resolve ();
+	    return get_base ()->unify (other);
 	  }
       }
     else if (other->get_kind () == TypeKind::PROJECTION)
       {
 	ProjectionType *p = static_cast<ProjectionType *> (other);
 	other = p->get ();
+	return get_base ()->unify (other);
       }
 
     other->accept_vis (*this);

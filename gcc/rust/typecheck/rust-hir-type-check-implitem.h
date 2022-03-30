@@ -473,6 +473,9 @@ public:
 	RichLocation r (type.get_locus ());
 	r.add_range (resolved_trait_item->get_locus ());
 
+	resolved_trait_item->get_tyty ()->debug ();
+	lookup->debug ();
+
 	rust_error_at (
 	  r, "type alias %<%s%> has an incompatible type for trait %<%s%>",
 	  type.get_new_type_name ().c_str (),

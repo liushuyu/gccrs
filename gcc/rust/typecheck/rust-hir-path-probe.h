@@ -408,6 +408,13 @@ protected:
 	break;
       }
 
+    const TraitItemReference *i = item.get_raw_item ();
+
+    rust_debug_loc (predicate.get_locus (), "looking at predicate for: [%s]",
+		    search.as_string ().c_str ());
+    receiver->debug ();
+    i->get_tyty ()->debug ();
+
     TyTy::BaseType *trait_item_tyty = item.get_tyty_for_receiver (receiver);
     PathProbeCandidate::TraitItemCandidate trait_item_candidate{trait_ref,
 								trait_item_ref,

@@ -142,6 +142,11 @@ private:
 	  }
       }
 
+    rust_debug_loc (trait_reference->get_locus (), "trait-has generics [%zu]",
+		    substitutions.size ());
+    for (size_t i = 0; i < substitutions.size (); i++)
+      rust_debug ("%s", substitutions.at (i).as_string ().c_str ());
+
     rust_assert (self != nullptr);
 
     // Check if there is a super-trait, and apply this bound to the Self

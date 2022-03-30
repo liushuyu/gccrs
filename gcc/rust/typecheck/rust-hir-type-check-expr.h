@@ -346,28 +346,32 @@ public:
 	  }
       }
 
-    if (!receiver_is_type_param)
+    // apply any remaining generic arguments
+    if (expr.get_method_name ().has_generic_args ())
       {
-	// apply any remaining generic arguments
-	if (expr.get_method_name ().has_generic_args ())
-	  {
-	    HIR::GenericArgs &args
-	      = expr.get_method_name ().get_generic_args ();
-	    lookup = SubstMapper::Resolve (lookup,
-					   expr.get_method_name ().get_locus (),
-					   &args);
-	    if (lookup->get_kind () == TyTy::TypeKind::ERROR)
-	      return;
-	  }
-	else if (lookup->needs_generic_substitutions ())
-	  {
-	    lookup
-	      = SubstMapper::InferSubst (lookup,
-					 expr.get_method_name ().get_locus ());
-	  }
+	HIR::GenericArgs &args = expr.get_method_name ().get_generic_args ();
+	lookup
+	  = SubstMapper::Resolve (lookup, expr.get_method_name ().get_locus (),
+				  &args);
+	if (lookup->get_kind () == TyTy::TypeKind::ERROR)
+	  return;
+      }
+    else if (lookup->needs_generic_substitutions ())
+      {
+	rust_debug ("TTTTTTTTTTTTTTT INFER SUBST 1");
+	lookup->debug ();
+
+	lookup = SubstMapper::InferSubst (lookup,
+					  expr.get_method_name ().get_locus ());
+
+	lookup->debug ();
+	rust_debug ("TTTTTTTTTTTTTTT INFER SUBST 2");
       }
 
     // ADT expected but got PARAM
+
+    rust_debug_loc (expr.get_method_name ().get_locus (), "method res 1111");
+    lookup->debug ();
 
     TyTy::BaseType *function_ret_tyty
       = TyTy::TypeCheckMethodCallExpr::go (lookup, expr, adjusted_self,
@@ -389,6 +393,9 @@ public:
 
     // return the result of the function back
     infered = function_ret_tyty;
+
+    infered->debug ();
+    rust_debug_loc (expr.get_method_name ().get_locus (), "method res 222");
   }
 
   void visit (HIR::AssignmentExpr &expr) override

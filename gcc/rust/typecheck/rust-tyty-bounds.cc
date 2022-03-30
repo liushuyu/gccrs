@@ -106,27 +106,50 @@ TypeBoundPredicate::TypeBoundPredicate (
   : SubstitutionRef (trait_reference.get_trait_substs (),
 		     SubstitutionArgumentMappings::error ()),
     reference (trait_reference.get_mappings ().get_defid ()), locus (locus),
-    args (HIR::GenericArgs::create_empty ()), error_flag (false)
-{}
+    error_flag (false)
+{
+  // we setup a dummy implict self argument
+  SubstitutionArg placeholder_self (&get_substs ().front (), nullptr);
+  used_arguments.get_mappings ().push_back (placeholder_self);
+}
 
 TypeBoundPredicate::TypeBoundPredicate (
   DefId reference, std::vector<SubstitutionParamMapping> substitutions,
   Location locus)
   : SubstitutionRef (std::move (substitutions),
 		     SubstitutionArgumentMappings::error ()),
-    reference (reference), locus (locus),
-    args (HIR::GenericArgs::create_empty ()), error_flag (false)
-{}
+    reference (reference), locus (locus), error_flag (false)
+{
+  // we setup a dummy implict self argument
+  SubstitutionArg placeholder_self (&get_substs ().front (), nullptr);
+  used_arguments.get_mappings ().push_back (placeholder_self);
+}
 
 TypeBoundPredicate::TypeBoundPredicate (const TypeBoundPredicate &other)
-  : SubstitutionRef ({}, other.used_arguments), reference (other.reference),
-    locus (other.locus), args (other.args), error_flag (other.error_flag)
+  : SubstitutionRef ({}, SubstitutionArgumentMappings::error ()),
+    reference (other.reference), locus (other.locus),
+    error_flag (other.error_flag)
 {
   substitutions.clear ();
   if (!other.is_error ())
     {
       for (const auto &p : other.get_substs ())
 	substitutions.push_back (p.clone ());
+
+      std::vector<SubstitutionArg> mappings;
+      for (size_t i = 0; i < other.used_arguments.get_mappings ().size (); i++)
+	{
+	  const SubstitutionArg &oa
+	    = other.used_arguments.get_mappings ().at (i);
+	  TyTy::BaseType *argument
+	    = oa.get_tyty () == nullptr ? nullptr : oa.get_tyty ()->clone ();
+	  SubstitutionArg arg (&substitutions.at (i), argument);
+	  mappings.push_back (std::move (arg));
+	}
+
+      used_arguments
+	= SubstitutionArgumentMappings (mappings,
+					other.used_arguments.get_locus ());
     }
 }
 
@@ -135,15 +158,29 @@ TypeBoundPredicate::operator= (const TypeBoundPredicate &other)
 {
   reference = other.reference;
   locus = other.locus;
-  args = other.args;
   error_flag = other.error_flag;
-  used_arguments = other.used_arguments;
+  used_arguments = SubstitutionArgumentMappings::error ();
 
   substitutions.clear ();
   if (!other.is_error ())
     {
       for (const auto &p : other.get_substs ())
 	substitutions.push_back (p.clone ());
+
+      std::vector<SubstitutionArg> mappings;
+      for (size_t i = 0; i < other.used_arguments.get_mappings ().size (); i++)
+	{
+	  const SubstitutionArg &oa
+	    = other.used_arguments.get_mappings ().at (i);
+	  TyTy::BaseType *argument
+	    = oa.get_tyty () == nullptr ? nullptr : oa.get_tyty ()->clone ();
+	  SubstitutionArg arg (&substitutions.at (i), argument);
+	  mappings.push_back (std::move (arg));
+	}
+
+      used_arguments
+	= SubstitutionArgumentMappings (mappings,
+					other.used_arguments.get_locus ());
     }
 
   return *this;
@@ -203,17 +240,18 @@ TypeBoundPredicate::apply_generic_arguments (HIR::GenericArgs *generic_args)
 {
   // we need to get the substitutions argument mappings but also remember that
   // we have an implicit Self argument which we must be careful to respect
-  rust_assert (used_arguments.is_empty ());
+  rust_assert (!used_arguments.is_empty ());
   rust_assert (!substitutions.empty ());
-
-  // we setup a dummy implict self argument
-  SubstitutionArg placeholder_self (&substitutions.front (), nullptr);
-  used_arguments.get_mappings ().push_back (std::move (placeholder_self));
 
   // now actually perform a substitution
   used_arguments = get_mappings_from_generic_args (*generic_args);
+
+  rust_debug_loc (generic_args->get_locus (),
+		  "applied generics here !!!! [%zu]", used_arguments.size ());
+  rust_debug ("[%p] [%s]", static_cast<const void *> (this),
+	      used_arguments.as_string ().c_str ());
+
   error_flag |= used_arguments.is_error ();
-  args = *generic_args;
 }
 
 bool
@@ -235,47 +273,45 @@ TypeBoundPredicate::lookup_associated_item (const std::string &search) const
   return TypeBoundPredicateItem (this, trait_item_ref);
 }
 
+TypeBoundPredicateItem
+TypeBoundPredicate::lookup_associated_item (
+  const Resolver::TraitItemReference *ref) const
+{
+  return lookup_associated_item (ref->get_identifier ());
+}
+
 BaseType *
-TypeBoundPredicateItem::get_tyty_for_receiver (
-  const TyTy::BaseType *receiver, const HIR::GenericArgs *bound_args)
+TypeBoundPredicateItem::get_tyty_for_receiver (const TyTy::BaseType *receiver)
 {
   TyTy::BaseType *trait_item_tyty = get_raw_item ()->get_tyty ();
-  if (trait_item_tyty->get_kind () == TyTy::TypeKind::FNDEF)
-    {
-      TyTy::FnType *fn = static_cast<TyTy::FnType *> (trait_item_tyty);
-      TyTy::SubstitutionParamMapping *param = nullptr;
-      for (auto &param_mapping : fn->get_substs ())
-	{
-	  const HIR::TypeParam &type_param = param_mapping.get_generic_param ();
-	  if (type_param.get_type_representation ().compare ("Self") == 0)
-	    {
-	      param = &param_mapping;
-	      break;
-	    }
-	}
-      rust_assert (param != nullptr);
-
-      std::vector<TyTy::SubstitutionArg> mappings;
-      mappings.push_back (TyTy::SubstitutionArg (param, receiver->clone ()));
-
-      Location locus; // FIXME
-      TyTy::SubstitutionArgumentMappings args (std::move (mappings), locus);
-      trait_item_tyty
-	= Resolver::SubstMapperInternal::Resolve (trait_item_tyty, args);
-    }
-
-  if (!parent->has_generic_args ())
+  if (parent->get_substitution_arguments ().is_empty ())
     return trait_item_tyty;
 
-  // FIXME LEAK this should really be const
-  const HIR::GenericArgs *args
-    = (bound_args != nullptr) ? bound_args : parent->get_generic_args ();
-  HIR::GenericArgs *generic_args = new HIR::GenericArgs (*args);
-  TyTy::BaseType *resolved
-    = Resolver::SubstMapper::Resolve (trait_item_tyty, parent->get_locus (),
-				      generic_args);
+  const Resolver::TraitItemReference *tref = get_raw_item ();
+  bool is_associated_type = tref->get_trait_item_type ();
+  if (is_associated_type)
+    return trait_item_tyty;
 
-  return resolved;
+  SubstitutionArgumentMappings gargs = parent->get_substitution_arguments ();
+  for (size_t i = 0; i < gargs.get_mappings ().size (); i++)
+    rust_debug ("%s", gargs.get_mappings ().at (i).as_string ().c_str ());
+
+  // set up the self mapping
+  rust_assert (!gargs.is_empty ());
+  auto &sarg = gargs.get_mappings ().at (0);
+  SubstitutionArg self (sarg.get_param_mapping (), receiver->clone ());
+  gargs.get_mappings ()[0] = self;
+
+  rust_debug_loc (parent->get_locus (), "get tyty for receiver: [%zu]",
+		  gargs.get_mappings ().size ());
+  trait_item_tyty->debug ();
+  receiver->debug ();
+  rust_debug ("[%p]", static_cast<const void *> (parent));
+
+  for (size_t i = 0; i < gargs.get_mappings ().size (); i++)
+    rust_debug ("%s", gargs.get_mappings ().at (i).as_string ().c_str ());
+
+  return Resolver::SubstMapperInternal::Resolve (trait_item_tyty, gargs);
 }
 bool
 TypeBoundPredicate::is_error () const
@@ -301,7 +337,7 @@ TypeBoundPredicate::requires_generic_args () const
   if (is_error ())
     return false;
 
-  return substitutions.size () > 1 && args.is_empty ();
+  return substitutions.size () > 1;
 }
 
 // trait item reference

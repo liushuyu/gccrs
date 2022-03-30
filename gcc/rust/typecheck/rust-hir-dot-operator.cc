@@ -355,9 +355,8 @@ MethodResolver::select ()
 	  const TraitItemReference *trait_item
 	    = predicate.lookup.get_raw_item ();
 
-	  TyTy::BaseType *subst = predicate.lookup.get_tyty_for_receiver (
-	    receiver.get_root (),
-	    predicate.lookup.get_parent ()->get_generic_args ());
+	  TyTy::BaseType *subst
+	    = predicate.lookup.get_tyty_for_receiver (receiver.get_root ());
 
 	  PathProbeCandidate::TraitItemCandidate c{trait_ref, trait_item,
 						   nullptr};

@@ -1425,11 +1425,6 @@ public:
 
   void visit (const SliceType &) override { ok = true; }
 
-  void visit (const PlaceholderType &type) override
-  {
-    ok = base->get_symbol ().compare (type.get_symbol ()) == 0;
-  }
-
 private:
   const BaseType *get_base () const override { return base; }
 
