@@ -3,17 +3,20 @@
 #include "rust-base62.h"
 
 // FIXME: Rename those to legacy_*
-static const std::string kMangledSymbolPrefix = "_ZN";
-static const std::string kMangledSymbolDelim = "E";
-static const std::string kMangledGenericDelim = "$C$";
-static const std::string kMangledSubstBegin = "$LT$";
-static const std::string kMangledSubstEnd = "$GT$";
-static const std::string kMangledSpace = "$u20$";
-static const std::string kMangledRef = "$RF$";
-static const std::string kMangledPtr = "$BP$";
-static const std::string kMangledLeftSqParen = "$u5b$";	 // [
-static const std::string kMangledRightSqParen = "$u5d$"; // ]
-static const std::string kQualPathBegin = "_" + kMangledSubstBegin;
+static const std::string kLegacyMangledSymbolPrefix = "_ZN";
+static const std::string kLegacyMangledSymbolDelim = "E";
+static const std::string kLegacyMangledGenericDelim = "$C$";
+static const std::string kLegacyMangledSubstBegin = "$LT$";
+static const std::string kLegacyMangledSubstEnd = "$GT$";
+static const std::string kLegacyMangledSpace = "$u20$";
+static const std::string kLegacyMangledRef = "$RF$";
+static const std::string kLegacyMangledPtr = "$BP$";
+static const std::string kLegacyMangledLeftSqParen = "$u5b$";	 // [
+static const std::string kLegacyMangledRightSqParen = "$u5d$"; // ]
+static const std::string kLegacyQualPathBegin = "_" + kLegacyMangledSubstBegin;
+
+// constants for v0
+static const std::string kV0MangledSymbolPrefix = "_R";
 
 namespace Rust {
 namespace Compile {
@@ -47,21 +50,21 @@ legacy_mangle_name (const std::string &name)
       char c = name.at (i);
 
       if (c == ' ')
-	m = kMangledSpace;
+	m = kLegacyMangledSpace;
       else if (c == '&')
-	m = kMangledRef;
+	m = kLegacyMangledRef;
       else if (i == 0 && c == '<')
-	m = kQualPathBegin;
+	m = kLegacyQualPathBegin;
       else if (c == '<')
-	m = kMangledSubstBegin;
+	m = kLegacyMangledSubstBegin;
       else if (c == '>')
-	m = kMangledSubstEnd;
+	m = kLegacyMangledSubstEnd;
       else if (c == '*')
-	m = kMangledPtr;
+	m = kLegacyMangledPtr;
       else if (c == '[')
-	m = kMangledLeftSqParen;
+	m = kLegacyMangledLeftSqParen;
       else if (c == ']')
-	m = kMangledRightSqParen;
+	m = kLegacyMangledRightSqParen;
       else if (c == ':')
 	{
 	  rust_assert (i + 1 < name.size ());
@@ -260,8 +263,8 @@ legacy_mangle_item (const TyTy::BaseType *ty,
   const std::string hash = legacy_hash (ty->as_string ());
   const std::string hash_sig = legacy_mangle_name (hash);
 
-  return kMangledSymbolPrefix + legacy_mangle_canonical_path (path) + hash_sig
-	 + kMangledSymbolDelim;
+  return kLegacyMangledSymbolPrefix + legacy_mangle_canonical_path (path) + hash_sig
+	 + kLegacyMangledSymbolDelim;
 }
 
 static std::string
